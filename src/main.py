@@ -20,8 +20,8 @@ import asyncio
 import signal
 from pathlib import Path
 
-from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.events import EVENT_JOB_ERROR, EVENT_JOB_MISSED
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 from src.config.settings import Settings, load_settings
 from src.domain.models import ScraperConfig
@@ -220,7 +220,7 @@ class SkySkimmer:
             for itinerary in qualifying:
                 flight_key = _make_flight_key(itinerary)
                 prev_price = await self.state_store.get_last_alerted_price(flight_key)
-                price_context[itinerary.booking_link] = prev_price
+                price_context[str(itinerary.booking_link)] = prev_price
 
                 if await self.state_store.should_send_alert(flight_key, itinerary.total_price):
                     to_dispatch.append((itinerary, flight_key))

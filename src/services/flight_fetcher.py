@@ -64,7 +64,7 @@ class ResponseValidationError(FlightFetcherError):
 
 def _is_retryable_exception(exc: BaseException) -> bool:
     """Return True for transient faults that should be retried."""
-    return isinstance(exc, (RetryableUpstreamError, httpx.TimeoutException, httpx.NetworkError))
+    return isinstance(exc, RetryableUpstreamError | httpx.TimeoutException | httpx.NetworkError)
 
 
 def _log_retry_attempt(retry_state: RetryCallState) -> None:
@@ -177,13 +177,13 @@ class FlightFetcherService:
         """Execute a single HTTP request and classify failure modes."""
         try:
             response = await self._client.get(SEARCH_PATH, params=params)
-        except httpx.TimeoutException as exc:
+        except httpx.TimeoutException:
             log.exception(
                 "Tequila request timed out",
                 timeout_seconds=REQUEST_TIMEOUT_SECONDS,
             )
             raise
-        except httpx.NetworkError as exc:
+        except httpx.NetworkError:
             log.exception("Network error during Tequila request")
             raise
 

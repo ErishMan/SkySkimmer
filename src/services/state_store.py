@@ -13,7 +13,6 @@ from __future__ import annotations
 import asyncio
 import json
 from abc import ABC, abstractmethod
-from decimal import Decimal
 from pathlib import Path
 
 from src.utils.logger import get_logger
