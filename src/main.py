@@ -5,17 +5,22 @@ Startup sequence (strict order):
   2. Configure structured logger
   3. Log startup diagnostics
   4. Register SIGINT/SIGTERM handlers for graceful shutdown
-  5. (Future) Start APScheduler with configured cron jobs
+  5. Trigger a one-shot Tequila fetch for payload inspection
   6. Block until termination signal received
 """
 
+import asyncio
 import signal
-import sys
 
 from src.config.settings import Settings, load_settings
+from src.services.flight_fetcher import (
+    ClientRequestError,
+    FlightFetcherService,
+    ResponseValidationError,
+    RetryableUpstreamError,
+)
 from src.utils.logger import configure_logger, get_logger
 
-# Module-level logger — populated after configure_logger() is called
 log = get_logger(__name__)
 
 
@@ -25,25 +30,20 @@ class SkySkimmer:
     def __init__(self, settings: Settings) -> None:
         self.settings = settings
         self._is_shutting_down = False
-
-    # ------------------------------------------------------------------
-    # Startup
-    # ------------------------------------------------------------------
+        self.flight_fetcher = FlightFetcherService(settings)
 
     def start(self) -> None:
         """Boot the application and block until a shutdown signal."""
         self._log_startup_banner()
         self._register_signal_handlers()
         self._health_check()
+        asyncio.run(self._run_startup_fetch())
 
         log.info(
-            "Scheduler ready — waiting for first poll cycle",
+            "Network ingestion hook completed — application idle",
             poll_interval_minutes=self.settings.poll_interval_minutes,
         )
 
-        # TODO (Phase 3): scheduler.start() will be called here.
-        # For now, we block the main thread to keep the container alive
-        # and confirm the harness is operational.
         self._block_until_shutdown()
 
     def _log_startup_banner(self) -> None:
@@ -59,12 +59,6 @@ class SkySkimmer:
         log.info("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 
     def _health_check(self) -> None:
-        """Validate that all subsystem prerequisites are reachable.
-
-        At this scaffold stage, we confirm required secrets are present
-        (already guaranteed by Settings validation) and log their status
-        without ever printing secret values.
-        """
         log.info(
             "[health] Tequila API key: present",
             key_prefix=self.settings.tequila_api_key.get_secret_value()[:6] + "...",
@@ -74,27 +68,45 @@ class SkySkimmer:
             log.info("[health] Discord error webhook: configured")
         else:
             log.warning(
-                "[health] DISCORD_ERROR_WEBHOOK_URL not set — "
-                "system errors will go to the main webhook"
+                "[health] DISCORD_ERROR_WEBHOOK_URL not set — system errors will go to the main webhook"
             )
         if self.settings.use_supabase:
             log.info("[health] State store: Supabase (remote)")
         else:
-            log.warning(
-                "[health] State store: local JSON file (not suitable for production)"
-            )
+            log.warning("[health] State store: local JSON file (not suitable for production)")
         log.info("[health] All checks passed — application is healthy")
 
-    # ------------------------------------------------------------------
-    # Graceful shutdown
-    # ------------------------------------------------------------------
+    async def _run_startup_fetch(self) -> None:
+        """One-shot startup hook for inspecting raw validated payload shape."""
+        try:
+            payload = await self.flight_fetcher.fetch_flight_data(
+                origin="SYD",
+                destination="LHR",
+                date_from="15/11/2026",
+                date_to="20/11/2026",
+                currency="AUD",
+                limit=3,
+            )
+            log.info(
+                "Startup fetch succeeded — raw validated payload follows",
+                payload=payload.model_dump(mode="json"),
+            )
+        except ClientRequestError as exc:
+            log.exception(
+                "Startup fetch failed with non-retryable client error",
+                status_code=exc.status_code,
+            )
+        except RetryableUpstreamError as exc:
+            log.exception(
+                "Startup fetch exhausted retries on transient upstream failure",
+                status_code=exc.status_code,
+            )
+        except ResponseValidationError:
+            log.exception("Startup fetch failed due to response schema drift")
+        finally:
+            await self.flight_fetcher.close()
 
     def _register_signal_handlers(self) -> None:
-        """Register OS signal handlers for clean shutdown.
-
-        SIGINT  — Ctrl+C (interactive terminal)
-        SIGTERM — Container orchestrator stop (Railway, Kubernetes, Docker)
-        """
         signal.signal(signal.SIGINT, self._handle_shutdown_signal)
         signal.signal(signal.SIGTERM, self._handle_shutdown_signal)
         log.debug("Signal handlers registered (SIGINT, SIGTERM)")
@@ -106,12 +118,9 @@ class SkySkimmer:
 
     def _shutdown(self) -> None:
         log.info("Shutting down SkySkimmer")
-        # TODO (Phase 3): scheduler.shutdown(wait=True) will be called here
-        # TODO (Phase 4): state store connection cleanup will go here
         log.info("Shutdown complete. Goodbye. ✈")
 
     def _block_until_shutdown(self) -> None:
-        """Block the main thread, yielding to signals, until shutdown is requested."""
         import time
 
         try:
@@ -121,19 +130,9 @@ class SkySkimmer:
             self._shutdown()
 
 
-# ------------------------------------------------------------------
-# Entry point
-# ------------------------------------------------------------------
-
 def main() -> None:
-    # Step 1: Fail-fast environment validation
-    # If any required variable is missing, this exits the process immediately.
     settings = load_settings()
-
-    # Step 2: Configure structured logger (must happen before any log calls)
     configure_logger(settings)
-
-    # Step 3: Boot the application
     app = SkySkimmer(settings)
     app.start()
 
