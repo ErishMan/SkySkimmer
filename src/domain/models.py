@@ -33,7 +33,7 @@ class FlightItinerary(BaseModel):
     departure_time: datetime
     arrival_time: datetime
     layover_count: int = Field(..., ge=0)
-    booking_link: str
+    booking_link: HttpUrl
     segment_count: int = Field(..., ge=1)
     segments: list[FlightSegment] = Field(default_factory=list)
 

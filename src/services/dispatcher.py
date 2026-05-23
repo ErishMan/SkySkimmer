@@ -90,7 +90,7 @@ class Dispatcher:
             "title": title,
             "description": description,
             "color": color,
-            "url": itinerary.booking_link,
+            "url": str(itinerary.booking_link) if itinerary.booking_link else None,
             "fields": [
                 {"name": "✈ Airline", "value": itinerary.airline, "inline": True},
                 {"name": "🗺 Route", "value": f"{origin} → {dest}", "inline": True},
@@ -105,7 +105,7 @@ class Dispatcher:
 
         if itinerary.booking_link:
             embed["fields"].append(
-                {"name": "🔗 Book Now", "value": f"[Open booking link]({itinerary.booking_link})", "inline": False}
+                {"name": "🔗 Book Now", "value": f"[Open booking link]({str(itinerary.booking_link)})", "inline": False}
             )
 
         return embed
@@ -173,7 +173,7 @@ class Dispatcher:
         """
         delivered = 0
         for index, itinerary in enumerate(qualifying):
-            prev = price_context.get(itinerary.booking_link)
+            prev = price_context.get(str(itinerary.booking_link))
             is_drop = prev is not None and itinerary.total_price < prev
             try:
                 await self.send_alert(itinerary, is_price_drop=is_drop, previous_price=prev)

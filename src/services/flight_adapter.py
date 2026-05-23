@@ -9,14 +9,16 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from src.contracts.tequila import TequilaFlightOffer, TequilaRoute, TequilaSearchResponse
+from pydantic import HttpUrl
+
+from src.contracts.tequila import TequilaRoute, TequilaSearchResponse
 from src.domain.models import FlightItinerary, FlightSegment
 from src.utils.logger import get_logger
 
 log = get_logger(__name__)
 
 
-DEFAULT_BOOKING_LINK = "https://www.kiwi.com"
+DEFAULT_BOOKING_LINK = HttpUrl("https://www.kiwi.com")
 DEFAULT_AIRLINE = "UNKNOWN"
 DEFAULT_AIRPORT = "UNKNOWN"
 DEFAULT_CURRENCY = "AUD"
@@ -34,7 +36,7 @@ def _safe_float(value: Any) -> float | None:
     """
     if value is None:
         return None
-    if isinstance(value, (int, float)):
+    if isinstance(value, int | float):
         return float(value)
     if isinstance(value, str):
         try:
@@ -112,7 +114,7 @@ def map_tequila_response_to_itineraries(payload: TequilaSearchResponse) -> list[
             departure_time=first_segment.departure_time,
             arrival_time=last_segment.arrival_time,
             layover_count=layover_count,
-            booking_link=offer.deep_link or DEFAULT_BOOKING_LINK,
+            booking_link=HttpUrl(offer.deep_link) if offer.deep_link else DEFAULT_BOOKING_LINK,
             segment_count=len(segments),
             segments=segments,
         )
