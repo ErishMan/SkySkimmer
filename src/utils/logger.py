@@ -63,7 +63,7 @@ def configure_logger(settings: "Settings") -> None:
             ),
             colorize=True,
             backtrace=True,
-            diagnose=True,
+            diagnose=False,
         )
 
     # Also write ERROR+ to a rotating file in both environments
