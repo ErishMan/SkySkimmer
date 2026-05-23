@@ -20,8 +20,8 @@ import asyncio
 import signal
 from pathlib import Path
 
-from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.events import EVENT_JOB_ERROR, EVENT_JOB_MISSED
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 from src.config.settings import Settings, load_settings
 from src.domain.models import ScraperConfig
