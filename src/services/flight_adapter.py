@@ -9,7 +9,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from src.contracts.tequila import TequilaFlightOffer, TequilaRoute, TequilaSearchResponse
+from src.contracts.tequila import TequilaRoute, TequilaSearchResponse
 from src.domain.models import FlightItinerary, FlightSegment
 from src.utils.logger import get_logger
 
@@ -34,7 +34,7 @@ def _safe_float(value: Any) -> float | None:
     """
     if value is None:
         return None
-    if isinstance(value, (int, float)):
+    if isinstance(value, int | float):
         return float(value)
     if isinstance(value, str):
         try:

@@ -6,9 +6,8 @@ with a clear, actionable error message — fail-fast by design.
 """
 
 from enum import StrEnum
-from typing import Literal
 
-from pydantic import Field, HttpUrl, SecretStr, field_validator, model_validator
+from pydantic import Field, SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
