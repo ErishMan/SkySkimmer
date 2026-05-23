@@ -6,13 +6,18 @@ Startup sequence (strict order):
   3. Log startup diagnostics
   4. Register SIGINT/SIGTERM handlers for graceful shutdown
   5. Trigger a one-shot Tequila fetch for payload inspection
-  6. Block until termination signal received
+  6. Map raw payload into normalized domain itineraries
+  7. Evaluate itineraries against rule config and log qualifying flights
+  8. Block until termination signal received
 """
 
 import asyncio
 import signal
 
 from src.config.settings import Settings, load_settings
+from src.domain.models import ScraperConfig
+from src.services.flight_adapter import map_tequila_response_to_itineraries
+from src.services.flight_evaluator import evaluate_itineraries
 from src.services.flight_fetcher import (
     ClientRequestError,
     FlightFetcherService,
@@ -33,14 +38,13 @@ class SkySkimmer:
         self.flight_fetcher = FlightFetcherService(settings)
 
     def start(self) -> None:
-        """Boot the application and block until a shutdown signal."""
         self._log_startup_banner()
         self._register_signal_handlers()
         self._health_check()
         asyncio.run(self._run_startup_fetch())
 
         log.info(
-            "Network ingestion hook completed — application idle",
+            "Data pipeline hook completed — application idle",
             poll_interval_minutes=self.settings.poll_interval_minutes,
         )
 
@@ -77,7 +81,7 @@ class SkySkimmer:
         log.info("[health] All checks passed — application is healthy")
 
     async def _run_startup_fetch(self) -> None:
-        """One-shot startup hook for inspecting raw validated payload shape."""
+        """One-shot pipeline hook: fetch -> adapt -> evaluate -> log results."""
         try:
             payload = await self.flight_fetcher.fetch_flight_data(
                 origin="SYD",
@@ -85,11 +89,34 @@ class SkySkimmer:
                 date_from="15/11/2026",
                 date_to="20/11/2026",
                 currency="AUD",
-                limit=3,
+                limit=10,
             )
             log.info(
                 "Startup fetch succeeded — raw validated payload follows",
                 payload=payload.model_dump(mode="json"),
+            )
+
+            itineraries = map_tequila_response_to_itineraries(payload)
+            log.info(
+                "Normalized itineraries generated",
+                itinerary_count=len(itineraries),
+                itineraries=[item.model_dump(mode="json") for item in itineraries],
+            )
+
+            config = ScraperConfig(
+                max_price=1800,
+                max_layovers=1,
+                allowed_airlines=["QF", "BA", "CX", "JL"],
+                sort_order="price_asc",
+                currency="AUD",
+            )
+            qualifying = evaluate_itineraries(itineraries, config)
+
+            log.info(
+                "Qualifying itineraries evaluated",
+                qualifying_count=len(qualifying),
+                qualifying_flights=[item.model_dump(mode="json") for item in qualifying],
+                applied_config=config.model_dump(mode="json"),
             )
         except ClientRequestError as exc:
             log.exception(
