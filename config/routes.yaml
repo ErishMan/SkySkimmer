@@ -1,0 +1,39 @@
+# ============================================================
+# SkySkimmer — Itinerary Configuration
+# Define each route you want SkySkimmer to monitor.
+# ============================================================
+
+routes:
+  - route_id: "SYD-LHR-economy-oneworld"
+    label: "Sydney to London — Economy, Oneworld carriers"
+    origin: "SYD"
+    destination: "LHR"
+    # ISO date range to search within
+    date_from: "2026-11-01"
+    date_to: "2026-11-30"
+    # Maximum total price in your chosen currency
+    max_price: 1800
+    currency: "AUD"
+    # Stopover constraints
+    max_stopovers: 1
+    stopover_min_hrs: 2
+    stopover_max_hrs: 8
+    # IATA airline codes to allow (empty list = no restriction)
+    allowed_airlines:
+      - "QF"   # Qantas
+      - "BA"   # British Airways
+      - "CX"   # Cathay Pacific
+      - "JL"   # Japan Airlines
+    cabin_class: "ECONOMY"  # ECONOMY | PREMIUM_ECONOMY | BUSINESS | FIRST
+    # Points-to-cash valuation (cents per point)
+    # Set to 0.0 to disable award fare comparison
+    cpp_valuation: 1.5
+    # Minimum price drop (absolute, in currency above) to trigger re-alert
+    alert_threshold_abs: 50
+    # Minimum price drop (percentage) to trigger re-alert (whichever triggers first)
+    alert_threshold_pct: 5.0
+
+  # Add more routes below following the same schema:
+  # - route_id: "MEL-NRT-business"
+  #   label: "Melbourne to Tokyo — Business"
+  #   ...

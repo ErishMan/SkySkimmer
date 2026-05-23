@@ -1,0 +1,45 @@
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Poetry
+.poetry/
+
+# Logs
+logs/
+*.log
+
+# State (local dev only)
+data/state.json
+
+# Type checking
+.mypy_cache/
+.ruff_cache/
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
